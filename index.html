@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>JNE FULFILLMENT - WMS (Cloud Supabase)</title>
   
+    <!-- TARUH DI SINI (PWA Manifest & Tema) -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
   <!-- Fonts & External Libraries -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -529,7 +535,7 @@
             <h6 class="fw-bold text-dark mb-2">Scan Lokasi Rak &amp; Jumlah Put Away</h6>
             
             <div class="bg-light p-3 rounded mb-3 border border-warning">
-              <label class="form-label fw-bold text-primary">Scan / Ketik Kode Lokasi (Contoh: A-01-01-1)</label>
+              <label class="form-label fw-bold text-primary">Scan / Ketik Kode Lokasi (Contoh: A-01-ST-A17)</label>
               <div class="input-group mb-2">
                 <input type="text" id="paScanLokasi" class="form-control form-control-lg fw-bold border-primary text-uppercase" placeholder="Scan Kode Lokasi" oninput="autoParseLokasi()" required>
                 <button type="button" class="btn btn-outline-primary fw-bold" onclick="toggleScanner('lokasi')">📷 Scan Lokasi</button>
@@ -597,7 +603,7 @@
             <h5 class="fw-bold text-primary mb-2">🔍 Scan Barcode Rak (Cek Isi Rak)</h5>
             <div class="bg-light p-3 rounded border">
               <div class="input-group">
-                <input type="text" id="scanRakInput" class="form-control form-control-lg fw-bold text-uppercase" placeholder="Contoh: A-01-01-1" onkeydown="if(event.key==='Enter') checkRakDetail()">
+                <input type="text" id="scanRakInput" class="form-control form-control-lg fw-bold text-uppercase" placeholder="Contoh: A-01-ST-A17" onkeydown="if(event.key==='Enter') checkRakDetail()">
                 <button type="button" class="btn btn-primary fw-bold px-4" onclick="checkRakDetail()">Cek Isi Rak</button>
                 <button type="button" class="btn btn-outline-primary fw-bold" onclick="toggleRakScanner()">📷 Scan Rak</button>
               </div>
@@ -674,7 +680,7 @@
             <div class="bg-light p-3 rounded border mb-3">
               <label class="form-label fw-bold text-dark">1. Masukkan / Scan Kode Rak Asal</label>
               <div class="input-group">
-                <input type="text" id="trfRakAsal" class="form-control form-control-lg fw-bold text-uppercase" placeholder="Contoh: A-05-PL-02" onkeydown="if(event.key==='Enter') loadItemsForTransfer()">
+                <input type="text" id="trfRakAsal" class="form-control form-control-lg fw-bold text-uppercase" placeholder="Contoh: A-01-ST-B25" onkeydown="if(event.key==='Enter') loadItemsForTransfer()">
                 <button type="button" class="btn btn-warning fw-bold px-4" onclick="loadItemsForTransfer()">Cari Isi Rak</button>
                 <button type="button" class="btn btn-outline-warning fw-bold" onclick="toggleTransferScanner('asal')">📷 Scan</button>
               </div>
@@ -888,6 +894,31 @@
     let currentLetdownTask = null;
     let letdownScans = {};
 
+    // =========================================================================
+    // HELPER: Normalisasi Kolom Supabase (Mendukung Huruf Besar, Spasi & Kecil)
+    // =========================================================================
+    function parsePutawayRow(r) {
+      if (!r) return {};
+      return {
+        id: r.id,
+        no_surat_jalan: r['No Surat Jalan'] || r.no_surat_jalan || r['No SJ'] || '',
+        tgl_terima: r['Tgl Terima JNE'] || r.tgl_terima || r['Tgl Terima'] || '',
+        bulan: r['Bulan'] || r.bulan || '',
+        kode_supplier: r['Kode Suplier'] || r.kode_supplier || r['Kode Supplier'] || '',
+        nama_supplier: r['Nama Suplier'] || r.nama_supplier || r['Nama Supplier'] || '',
+        kode_item: r['Kode Item'] || r.kode_item || '',
+        nama_item: r['Nama Item'] || r.nama_item || r['NAMA ITEM'] || '',
+        area: r['Area'] || r.area || '',
+        lorong: r['Lorong'] || r.lorong || '',
+        rak: r['Rak'] || r.rak || '',
+        level: r['Level'] || r.level || '',
+        lokasi: String(r['Lokasi'] || r.lokasi || '').trim().toUpperCase(),
+        jumlah: Number(r['Jumlah'] !== undefined ? r['Jumlah'] : (r.jumlah || 0)),
+        harga: Number(r['Harga'] !== undefined ? r['Harga'] : (r.harga || 0)),
+        raw: r
+      };
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
       try {
         if (window.supabase && window.supabase.createClient) {
@@ -965,19 +996,16 @@
     async function loadPutAwayDashboard() {
       if (!sb) return;
       try {
-        const { data: paData } = await sb.from('putaway_inventory').select('*');
+        const { data: paData, error: paErr } = await sb.from('putaway_inventory').select('*');
         const { data: outData } = await sb.from('outbound_orders').select('*');
 
-        masterPutAwayList = (paData || []).map(r => ({
-          ...r,
-          id: r.id,
-          nama_item: r.nama_item || '',
-          jumlah: Number(r.jumlah || 0),
-          lokasi: r.lokasi || '',
-          tgl_terima: r.tgl_terima || '',
-          nama_supplier: r.nama_supplier || '',
-          no_surat_jalan: r.no_surat_jalan || ''
-        }));
+        if (paErr) {
+          console.error("Error load putaway:", paErr);
+          alert("Gagal membaca tabel putaway_inventory: " + paErr.message);
+          return;
+        }
+
+        masterPutAwayList = (paData || []).map(parsePutawayRow);
 
         document.getElementById('dashOutbound').innerText = (outData || []).length;
         applyDashboardFilters();
@@ -997,7 +1025,8 @@
         if (kw) {
           const item = (r.nama_item || "").toLowerCase();
           const lok = (r.lokasi || "").toLowerCase();
-          if (!item.includes(kw) && !lok.includes(kw)) ok = false;
+          const sj = (r.no_surat_jalan || "").toLowerCase();
+          if (!item.includes(kw) && !lok.includes(kw) && !sj.includes(kw)) ok = false;
         }
         return ok;
       });
@@ -1012,9 +1041,9 @@
         if ((r.no_surat_jalan || "").toUpperCase().includes("RETUR")) totalRetur += q;
       });
 
-      document.getElementById('dashItem').innerText = items.size;
-      document.getElementById('dashStock').innerText = totalStock.toLocaleString();
-      document.getElementById('dashReturn').innerText = totalRetur.toLocaleString();
+      document.getElementById('dashItem').innerText = items.size.toLocaleString('id-ID');
+      document.getElementById('dashStock').innerText = totalStock.toLocaleString('id-ID');
+      document.getElementById('dashReturn').innerText = totalRetur.toLocaleString('id-ID');
 
       renderDashboardTable(filtered);
       renderPutAwayChart(filtered);
@@ -1031,7 +1060,7 @@
       const tbody = document.getElementById('dashboardTableBody');
       tbody.innerHTML = "";
       if (!list.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Tidak ada data Put Away.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Tidak ada data Put Away di Supabase.</td></tr>';
         return;
       }
       list.slice(0, 100).forEach((r, idx) => {
@@ -1041,7 +1070,7 @@
             <td>${r.tgl_terima || '-'}</td>
             <td>${r.nama_supplier || '-'}</td>
             <td>${r.nama_item || '-'}</td>
-            <td class="fw-bold text-success">${Number(r.jumlah || 0).toLocaleString()}</td>
+            <td class="fw-bold text-success">${Number(r.jumlah || 0).toLocaleString('id-ID')}</td>
             <td><span class="badge bg-primary">${r.lokasi || '-'}</span></td>
           </tr>
         `;
@@ -1071,7 +1100,15 @@
 
     function downloadPutAwayDashboardExcel() {
       if (!masterPutAwayList.length) return alert("Tidak ada data untuk diunduh!");
-      const ws = XLSX.utils.json_to_sheet(masterPutAwayList);
+      const exportData = masterPutAwayList.map(r => ({
+        "No Surat Jalan": r.no_surat_jalan,
+        "Tgl Terima": r.tgl_terima,
+        "Supplier": r.nama_supplier,
+        "Nama Item": r.nama_item,
+        "Jumlah": r.jumlah,
+        "Lokasi Rak": r.lokasi
+      }));
+      const ws = XLSX.utils.json_to_sheet(exportData);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Put Away");
       XLSX.writeFile(wb, "Rekap_Put_Away.xlsx");
@@ -1349,25 +1386,26 @@
 
     async function handleSavePutaway(e) {
       e.preventDefault();
+      // Gunakan nama kolom Supabase yang presisi
       const payload = {
-        no_surat_jalan: document.getElementById('paScanSJ').value,
-        tgl_terima: document.getElementById('paTglTerima').value || new Date().toISOString().split('T')[0],
-        bulan: document.getElementById('paBulan').value,
-        kode_supplier: document.getElementById('paKodeSupplier').value,
-        nama_supplier: document.getElementById('paNamaSupplier').value,
-        kode_item: document.getElementById('paKodeItem').value,
-        nama_item: document.getElementById('paNamaItem').value,
-        area: document.getElementById('paArea').value,
-        lorong: document.getElementById('paLorong').value,
-        rak: document.getElementById('paRak').value,
-        level: document.getElementById('paLevel').value,
-        lokasi: document.getElementById('paScanLokasi').value,
-        jumlah: Number(document.getElementById('paJumlah').value) || 0,
-        harga: Number(document.getElementById('paHarga').value) || 0
+        'No Surat Jalan': document.getElementById('paScanSJ').value,
+        'Tgl Terima JNE': document.getElementById('paTglTerima').value || new Date().toISOString().split('T')[0],
+        'Bulan': document.getElementById('paBulan').value,
+        'Kode Suplier': document.getElementById('paKodeSupplier').value,
+        'Nama Suplier': document.getElementById('paNamaSupplier').value,
+        'Kode Item': document.getElementById('paKodeItem').value,
+        'Nama Item': document.getElementById('paNamaItem').value,
+        'Area': document.getElementById('paArea').value,
+        'Lorong': document.getElementById('paLorong').value,
+        'Rak': document.getElementById('paRak').value,
+        'Level': document.getElementById('paLevel').value,
+        'Lokasi': document.getElementById('paScanLokasi').value.trim().toUpperCase(),
+        'Jumlah': Number(document.getElementById('paJumlah').value) || 0,
+        'Harga': Number(document.getElementById('paHarga').value) || 0
       };
 
       const { error } = await sb.from('putaway_inventory').insert([payload]);
-      if (error) alert("Gagal: " + error.message);
+      if (error) alert("Gagal simpan ke Supabase: " + error.message);
       else {
         alert("✅ Data Put Away Berhasil Disimpan ke Supabase!");
         document.getElementById('putawayForm').reset();
@@ -1415,12 +1453,13 @@
     async function loadKapasitasPage() {
       if (!sb) return;
       const { data: locs } = await sb.from('warehouse_locations').select('*');
-      const { data: pa } = await sb.from('putaway_inventory').select('lokasi, jumlah');
+      const { data: pa } = await sb.from('putaway_inventory').select('*');
 
       const usedMap = {};
-      (pa || []).forEach(r => {
-        const l = String(r.lokasi || '').toUpperCase();
-        usedMap[l] = (usedMap[l] || 0) + Number(r.jumlah || 0);
+      (pa || []).forEach(row => {
+        const r = parsePutawayRow(row);
+        const l = r.lokasi.toUpperCase();
+        usedMap[l] = (usedMap[l] || 0) + r.jumlah;
       });
 
       masterLokasiList = (locs || []).map(l => {
@@ -1478,7 +1517,12 @@
       const kode = document.getElementById('scanRakInput').value.trim().toUpperCase();
       if (!kode) return alert("Masukkan kode lokasi rak!");
       
-      const { data: items } = await sb.from('putaway_inventory').select('*').eq('lokasi', kode);
+      let { data: items } = await sb.from('putaway_inventory').select('*').eq('Lokasi', kode);
+      if (!items || !items.length) {
+        const res2 = await sb.from('putaway_inventory').select('*').eq('lokasi', kode);
+        if (res2.data) items = res2.data;
+      }
+
       document.getElementById('rakDetailContainer').style.display = 'block';
       document.getElementById('resRakKode').innerText = kode;
 
@@ -1492,11 +1536,12 @@
       const tbody = document.getElementById('rakItemsTableBody');
       tbody.innerHTML = "";
       let total = 0;
-      (items || []).forEach((r, idx) => {
-        total += Number(r.jumlah) || 0;
-        tbody.innerHTML += `<tr><td>${idx+1}</td><td><span class="badge bg-secondary">${r.kode_item}</span></td><td>${r.nama_item}</td><td class="text-center fw-bold text-success">${r.jumlah} pcs</td></tr>`;
+      (items || []).forEach((row, idx) => {
+        const r = parsePutawayRow(row);
+        total += r.jumlah;
+        tbody.innerHTML += `<tr><td>${idx+1}</td><td><span class="badge bg-secondary">${r.kode_item || '-'}</span></td><td>${r.nama_item}</td><td class="text-center fw-bold text-success">${r.jumlah.toLocaleString('id-ID')} pcs</td></tr>`;
       });
-      document.getElementById('resRakTotalBarang').innerText = `Total: ${total} pcs`;
+      document.getElementById('resRakTotalBarang').innerText = `Total: ${total.toLocaleString('id-ID')} pcs`;
     }
 
     function quickCheckRak(k) {
@@ -1526,14 +1571,18 @@
       const rakAsal = document.getElementById('trfRakAsal').value.trim().toUpperCase();
       if (!rakAsal) return alert("Masukkan kode rak asal!");
 
-      const { data, error } = await sb.from('putaway_inventory').select('*').eq('lokasi', rakAsal).gt('jumlah', 0);
-      if (error) return alert("Error: " + error.message);
-      if (!data || !data.length) return alert("Tidak ada barang aktif di rak " + rakAsal);
+      let { data, error } = await sb.from('putaway_inventory').select('*').eq('Lokasi', rakAsal);
+      if (!data || !data.length) {
+        const res2 = await sb.from('putaway_inventory').select('*').eq('lokasi', rakAsal);
+        if (res2.data) data = res2.data;
+      }
 
-      currentTrfItems = data;
+      currentTrfItems = (data || []).map(parsePutawayRow).filter(r => r.jumlah > 0);
+      if (!currentTrfItems.length) return alert("Tidak ada barang aktif di rak " + rakAsal);
+
       document.getElementById('lblTrfRakAsal').innerText = rakAsal;
-      let total = currentTrfItems.reduce((acc, curr) => acc + (Number(curr.jumlah) || 0), 0);
-      document.getElementById('lblTrfTotalQty').innerText = total;
+      let total = currentTrfItems.reduce((acc, curr) => acc + curr.jumlah, 0);
+      document.getElementById('lblTrfTotalQty').innerText = total.toLocaleString('id-ID');
 
       const tbody = document.getElementById('trfTableBody');
       tbody.innerHTML = "";
@@ -1610,7 +1659,7 @@
         if (chk && chk.checked) {
           const q = Number(document.getElementById('qtyTrf_' + idx).value) || 0;
           if (q > 0) {
-            selected.push({ row: r, qtyPindah: q });
+            selected.push({ item: r, qtyPindah: q });
             totalPindah += q;
           }
         }
@@ -1629,37 +1678,37 @@
         const trfId = "TRF-" + Date.now();
         const nowStr = new Date().toLocaleString('id-ID');
 
-        for (const item of selected) {
-          const r = item.row;
-          const q = item.qtyPindah;
+        for (const sel of selected) {
+          const r = sel.item;
+          const q = sel.qtyPindah;
 
           if (q >= r.jumlah) {
             // Full transfer: update row langsung
             await sb.from('putaway_inventory').update({
-              lokasi: rakTujuan, area: area, lorong: lorong, rak: rak, level: level
+              'Lokasi': rakTujuan, 'Area': area, 'Lorong': lorong, 'Rak': rak, 'Level': level
             }).eq('id', r.id);
           } else {
             // Parsial transfer: kurangi stok lama & buat baris baru
             await sb.from('putaway_inventory').update({
-              jumlah: r.jumlah - q
+              'Jumlah': r.jumlah - q
             }).eq('id', r.id);
 
             await sb.from('putaway_inventory').insert([{
-              no_surat_jalan: r.no_surat_jalan,
-              tgl_terima: r.tgl_terima,
-              bulan: r.bulan,
-              kode_supplier: r.kode_supplier,
-              nama_supplier: r.nama_supplier,
-              kode_item: r.kode_item,
-              nama_item: r.nama_item,
-              area: area, lorong: lorong, rak: rak, level: level,
-              lokasi: rakTujuan,
-              jumlah: q,
-              harga: r.harga
+              'No Surat Jalan': r.no_surat_jalan,
+              'Tgl Terima JNE': r.tgl_terima,
+              'Bulan': r.bulan,
+              'Kode Suplier': r.kode_supplier,
+              'Nama Suplier': r.nama_supplier,
+              'Kode Item': r.kode_item,
+              'Nama Item': r.nama_item,
+              'Area': area, 'Lorong': lorong, 'Rak': rak, 'Level': level,
+              'Lokasi': rakTujuan,
+              'Jumlah': q,
+              'Harga': r.harga
             }]);
           }
 
-          // Catat Riwayat
+          // Catat Riwayat Transfer
           await sb.from('pallet_transfers').insert([{
             transfer_id: trfId,
             tanggal: nowStr,
@@ -1704,7 +1753,7 @@
       });
 
       if (!filtered.length) {
-        tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">Belum ada riwayat transfer.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-3">Belum ada riwayat transfer.</td></tr>';
         return;
       }
 
@@ -1797,7 +1846,8 @@
         const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
 
         // Ambil stok aktif dari Supabase
-        const { data: stockData } = await sb.from('putaway_inventory').select('*').gt('jumlah', 0).order('id', { ascending: true });
+        const { data: rawStock } = await sb.from('putaway_inventory').select('*');
+        const stockData = (rawStock || []).map(parsePutawayRow).filter(s => s.jumlah > 0);
         const { data: existingOut } = await sb.from('outbound_orders').select('resi');
 
         const seenResi = new Set((existingOut || []).map(x => String(x.resi).toUpperCase()));
@@ -1808,7 +1858,6 @@
           const desc = String(row['DESKRIPSI BARANG'] || row['GOODS DESC'] || '').trim();
           if (resi && seenResi.has(resi)) return;
 
-          // Parsing sederhana qty & nama
           const m = desc.match(/\((\d+)\)(.+)/);
           const q = m ? Number(m[1]) : 1;
           const itName = (m ? m[2] : desc).trim().toUpperCase();
@@ -1820,7 +1869,7 @@
 
         Object.keys(demand).forEach(name => {
           let needed = demand[name];
-          const lots = (stockData || []).filter(s => String(s.nama_item).toUpperCase().includes(name) || name.includes(String(s.nama_item).toUpperCase()));
+          const lots = stockData.filter(s => String(s.nama_item).toUpperCase().includes(name) || name.includes(String(s.nama_item).toUpperCase()));
           
           lots.forEach(lot => {
             if (needed <= 0 || lot.jumlah <= 0) return;
@@ -1955,10 +2004,11 @@
 
       for (const l of currentLetdownTask) {
         // Ambil stok baris terkait
-        const { data: cur } = await sb.from('putaway_inventory').select('jumlah').eq('id', l.row_putaway).single();
+        const { data: cur } = await sb.from('putaway_inventory').select('*').eq('id', l.row_putaway).single();
         if (cur) {
-          const sisa = Math.max(0, Number(cur.jumlah) - Number(l.qty_ambil));
-          await sb.from('putaway_inventory').update({ jumlah: sisa }).eq('id', l.row_putaway);
+          const curJml = Number(cur['Jumlah'] !== undefined ? cur['Jumlah'] : (cur.jumlah || 0));
+          const sisa = Math.max(0, curJml - Number(l.qty_ambil));
+          await sb.from('putaway_inventory').update({ 'Jumlah': sisa }).eq('id', l.row_putaway);
         }
         await sb.from('letdown_tasks').update({ status: 'DONE', tgl_selesai: new Date().toLocaleString('id-ID') }).eq('id', l.id);
       }
@@ -1983,5 +2033,14 @@
       }
     }
   </script>
+  <script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => console.log('PWA ServiceWorker siap:', reg.scope))
+        .catch(err => console.error('PWA gagal:', err));
+    });
+  }
+</script>
 </body>
 </html>
