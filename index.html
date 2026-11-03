@@ -1,0 +1,1987 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>JNE FULFILLMENT - WMS (Cloud Supabase)</title>
+  
+  <!-- Fonts & External Libraries -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Libraries Pendukung -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root {
+      --bg-app: #f8fafc;
+      --surface: #ffffff;
+      --surface-subtle: #f1f5f9;
+      --ink-primary: #0f172a;
+      --ink-secondary: #475569;
+      --ink-muted: #94a3b8;
+      --border-color: #e2e8f0;
+      --border-focus: #3b82f6;
+      --brand-primary: #2563eb;
+      --brand-primary-hover: #1d4ed8;
+      --brand-success: #10b981;
+      --brand-warning: #f59e0b;
+      --brand-danger: #ef4444;
+      --sidebar-bg: #0f172a;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 24px;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+      --spring-transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      background-color: var(--bg-app);
+      color: var(--ink-primary);
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      margin: 0;
+      font-size: 14px;
+      letter-spacing: -0.01em;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .motion-page { animation: springSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes springSlideUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .btn {
+      border-radius: var(--radius-md);
+      font-weight: 600;
+      font-size: 0.875rem;
+      padding: 0.625rem 1.25rem;
+      border: 1px solid transparent;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      transition: var(--spring-transition);
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+
+    .btn-primary { background-color: var(--brand-primary); color: #fff; }
+    .btn-primary:hover { background-color: var(--brand-primary-hover); }
+    .btn-success { background-color: var(--brand-success); color: #fff; }
+    .btn-danger { background-color: var(--brand-danger); color: #fff; }
+    .btn-secondary { background-color: #64748b; color: #fff; }
+
+    #loginSection {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999;
+      display: flex; justify-content: center; align-items: center;
+      background: radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 100%);
+    }
+
+    #loginSection .card {
+      background: rgba(255, 255, 255, 0.98);
+      border-radius: var(--radius-xl);
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35);
+      padding: 2.25rem;
+      width: 380px;
+      max-width: 90vw;
+    }
+
+    .sidebar {
+      height: 100vh;
+      width: 250px;
+      position: fixed;
+      top: 0; left: 0;
+      z-index: 100;
+      overflow-y: auto;
+      background-color: var(--sidebar-bg);
+      color: #94a3b8;
+      padding: 1.25rem 0.75rem;
+    }
+
+    .sidebar .brand-title {
+      color: #ffffff;
+      font-weight: 800;
+      font-size: 1.1rem;
+      padding: 0.5rem 1rem 1.25rem 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .sidebar a {
+      display: flex;
+      align-items: center;
+      margin: 4px 0;
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+      color: #94a3b8;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.875rem;
+      transition: var(--spring-transition);
+    }
+
+    .sidebar a:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .sidebar a.active { background: var(--brand-primary); color: #fff; }
+    .sidebar a.text-warning { color: #fbbf24 !important; }
+
+    .main-content {
+      margin-left: 250px;
+      padding: 1.75rem 2rem;
+      min-height: 100vh;
+    }
+
+    @media (max-width: 768px) {
+      .sidebar { width: 100%; height: auto; position: relative; }
+      .main-content { margin-left: 0; padding: 1rem; }
+    }
+
+    .card {
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .card-stat {
+      border: none;
+      border-radius: var(--radius-lg);
+      color: #ffffff;
+      padding: 1.25rem !important;
+    }
+    .card-stat h6 { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; opacity: 0.85; }
+    .card-stat h2 { font-size: 2rem; font-weight: 800; }
+
+    .table-responsive {
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+    }
+    .table thead th {
+      background-color: #0f172a !important;
+      color: #f8fafc !important;
+      font-weight: 700;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+    }
+
+    .badge { border-radius: 9999px; font-weight: 700; padding: 0.35em 0.75em; }
+    .lokasi-box-card { cursor: pointer; transition: var(--spring-transition); }
+    .lokasi-box-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--brand-primary) !important; }
+  </style>
+</head>
+<body>
+
+  <!-- LOGIN SECTION -->
+  <div id="loginSection">
+    <div class="card shadow-lg text-center">
+      <div class="mb-2">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+      </div>
+      <h3 class="fw-bold mb-1 text-dark">JNE FULFILLMENT</h3>
+      <p class="text-muted small mb-4">Warehouse Management System (Supabase Cloud)</p>
+      
+      <div class="mb-3 text-start">
+        <label class="form-label fw-bold small">Username</label>
+        <input type="text" id="userInput" class="form-control" placeholder="Admin / Outbound" value="Admin" onkeydown="if(event.key==='Enter') login()">
+      </div>
+      <div class="mb-3 text-start">
+        <label class="form-label fw-bold small">Password</label>
+        <input type="password" id="passInput" class="form-control" placeholder="Password" value="JNEKRW123" onkeydown="if(event.key==='Enter') login()">
+      </div>
+      <button type="button" onclick="login()" class="btn btn-primary w-100 fw-bold py-2 mt-2">LOGIN</button>
+      <div id="loginMsg" class="mt-3 text-danger small fw-bold"></div>
+    </div>
+  </div>
+
+  <!-- APP SECTION -->
+  <div id="appSection" style="display: none;">
+    <div class="sidebar">
+      <div class="brand-title">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+        JNE FULFILLMENT
+      </div>
+      <a href="javascript:void(0)" id="menu1" class="active" onclick="showPage(1)">Dashboard</a>
+      <a href="javascript:void(0)" id="menu2" onclick="showPage(2)">Pengecekan PO</a>
+      <a href="javascript:void(0)" id="menu3" onclick="showPage(3)">Incoming</a>
+      <a href="javascript:void(0)" id="menu4" onclick="showPage(4)">Put Away (Mobile)</a>
+      <a href="javascript:void(0)" id="menu5" onclick="showPage(5)">Status Kapasitas</a>
+      <a href="javascript:void(0)" id="menu6" onclick="showPage(6)">MACRO</a>
+      <a href="javascript:void(0)" id="menu7" onclick="showPage(7)">Proses Outbound</a>
+      <a href="javascript:void(0)" id="menu8" onclick="showPage(8)">Letdown Proses</a>
+      <a href="javascript:void(0)" onclick="logout()" class="text-warning mt-4">Logout</a>
+    </div>
+
+    <div class="main-content">
+      
+      <!-- PAGE 1: DASHBOARD -->
+      <div id="page1" class="motion-page">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h3 class="text-dark fw-bold m-0">Dashboard Data Stock Opname</h3>
+          <span class="badge bg-success fs-6" id="dbStatusBadge">🟢 Supabase Connected</span>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-md-3">
+            <div class="card card-stat bg-primary p-3 shadow-sm">
+              <h6 class="mb-1">Total Item Product</h6>
+              <h2 id="dashItem" class="fw-bold mb-0">0</h2>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card card-stat bg-success p-3 shadow-sm">
+              <h6 class="mb-1">Total End Stock</h6>
+              <h2 id="dashStock" class="fw-bold mb-0">0</h2>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card card-stat bg-warning p-3 shadow-sm text-dark">
+              <h6 class="mb-1">Total Return</h6>
+              <h2 id="dashReturn" class="fw-bold mb-0">0</h2>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card card-stat bg-danger p-3 shadow-sm">
+              <h6 class="mb-1">Total Outbound</h6>
+              <h2 id="dashOutbound" class="fw-bold mb-0">0</h2>
+            </div>
+          </div>
+        </div>
+
+        <div class="card p-4 shadow-sm bg-white mb-4">
+          <h5 class="fw-bold mb-3 text-dark">Grafik Jumlah Put Away Berdasarkan Tanggal</h5>
+          <div style="position: relative; height: 260px; width: 100%;">
+            <canvas id="putawayChart"></canvas>
+          </div>
+        </div>
+
+        <div class="card p-4 shadow-sm bg-white">
+          <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <h5 class="fw-bold m-0">Rekap Data Put Away (Stok Rak)</h5>
+            <button onclick="downloadPutAwayDashboardExcel()" class="btn btn-success btn-sm fw-bold">Download Excel</button>
+          </div>
+
+          <div class="row g-2 p-3 bg-light rounded mb-3 border">
+            <div class="col-md-3">
+              <label class="form-label fw-bold small">Dari Tanggal</label>
+              <input type="date" id="dashFilterStartDate" class="form-control" onchange="applyDashboardFilters()">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-bold small">Sampai Tanggal</label>
+              <input type="date" id="dashFilterEndDate" class="form-control" onchange="applyDashboardFilters()">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold small">Cari Nama Item / Lokasi</label>
+              <input type="text" id="dashFilterSearch" class="form-control" placeholder="Ketik nama item atau lokasi..." oninput="applyDashboardFilters()">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+              <button onclick="resetDashboardFilters()" class="btn btn-secondary w-100 fw-bold">Reset</button>
+            </div>
+          </div>
+
+          <div class="table-responsive" style="max-height: 400px;">
+            <table class="table table-striped table-hover align-middle mb-0">
+              <thead class="sticky-top">
+                <tr>
+                  <th>No</th>
+                  <th>Tgl Terima</th>
+                  <th>Supplier</th>
+                  <th>Nama Item</th>
+                  <th>Jumlah (Pcs)</th>
+                  <th>Lokasi Rak</th>
+                </tr>
+              </thead>
+              <tbody id="dashboardTableBody">
+                <tr><td colspan="6" class="text-center text-muted">Memuat data dari database...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE 2: PENGECEKAN PO -->
+      <div id="page2" style="display: none;" class="motion-page">
+        <h3 class="mb-4 text-dark fw-bold">Pengecekan PO</h3>
+        <div class="card p-4 mb-4 shadow-sm bg-white">
+          <h5 class="fw-bold mb-3">Upload File Excel PO Baru</h5>
+          <div class="row g-2 align-items-center">
+            <div class="col-md-8">
+              <input type="file" id="poExcelFile" class="form-control" accept=".xlsx, .xls">
+            </div>
+            <div class="col-md-4">
+              <button onclick="uploadPO()" class="btn btn-primary w-100 fw-bold">Upload ke Database</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card p-4 shadow-sm bg-white">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold m-0">Daftar Rekap Pengecekan PO</h5>
+            <button onclick="downloadPOExcel()" class="btn btn-success fw-bold btn-sm">Download Excel</button>
+          </div>
+
+          <div class="row g-2 p-3 bg-light rounded mb-3 border">
+            <div class="col-md-4">
+              <label class="form-label fw-bold small">Cari No PO / Supplier / Item</label>
+              <input type="text" id="filterPOSearch" class="form-control" placeholder="Cari..." oninput="applyPOFilters()">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="filterSelisihOnly" onchange="applyPOFilters()">
+                <label class="form-check-label fw-bold text-danger" for="filterSelisihOnly">
+                  Tampilkan Selisih (Qty Sisa != 0)
+                </label>
+              </div>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+              <button onclick="loadPOTable()" class="btn btn-secondary w-100 fw-bold">Refresh Data</button>
+            </div>
+          </div>
+
+          <div class="table-responsive" style="max-height: 400px;">
+            <table class="table table-striped table-hover align-middle mb-0">
+              <thead class="sticky-top">
+                <tr>
+                  <th>No</th><th>Nomor PO</th><th>Tanggal PO</th><th>Supplier</th><th>Kode Item</th><th>Item Produk</th><th>Qty Total</th><th>Qty Terima</th><th>Qty Sisa</th><th>Ket</th>
+                </tr>
+              </thead>
+              <tbody id="poTableBody">
+                <tr><td colspan="10" class="text-center text-muted">Memuat data...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE 3: INCOMING -->
+      <div id="page3" style="display: none;" class="motion-page">
+        <h3 class="mb-4 text-dark fw-bold">Input Incoming (Barang Masuk)</h3>
+        <div class="card p-4 shadow-sm bg-white mb-4">
+          <form id="incomingForm" onsubmit="handleIncoming(event)">
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label fw-bold">No Surat Jalan</label>
+                <input type="text" id="noSuratJalan" class="form-control" placeholder="Input No SJ" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold">Kode Supplier</label>
+                <select id="kodeSupplier" class="form-select" onchange="updateSupplierName()" required>
+                  <option value="">-- Pilih Supplier --</option>
+                  <option value="IN SP">IN SP - San Pasific Abadi</option>
+                  <option value="IN BM">IN BM - Bolia Mitra Utama</option>
+                  <option value="IN NC">IN NC - Nicholas Trimega Kencana</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold">Nama Supplier</label>
+                <input type="text" id="namaSupplier" class="form-control bg-light" readonly>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold">Pilih Item</label>
+                <select id="kodeItem" class="form-select" onchange="updateItemDetails()" required>
+                  <option value="">-- Memuat Item... --</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold">Nama Item</label>
+                <input type="text" id="namaItem" class="form-control bg-light" readonly required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold">Harga</label>
+                <input type="number" id="hargaItem" class="form-control bg-light" readonly placeholder="0">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold">NO PO</label>
+                <input type="text" id="noPO" class="form-control" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold">Qty Surat Jalan</label>
+                <input type="number" id="qtySuratJalan" class="form-control" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold">Qty Masuk</label>
+                <input type="number" id="qtyMasuk" class="form-control" oninput="calcGap()" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold">Qty Diterima</label>
+                <input type="number" id="qtyDiterima" class="form-control" oninput="calcGap()" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold">GAP (Selisih)</label>
+                <input type="number" id="gap" class="form-control bg-light" readonly>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold text-primary">Lokasi Target Put-away</label>
+                <select id="lokasiPutaway" class="form-select border-primary" required>
+                  <option value="">-- Memuat Lokasi... --</option>
+                </select>
+              </div>
+              <div class="col-md-12">
+                <label class="form-label fw-bold">Keterangan</label>
+                <input type="text" id="keterangan" class="form-control" placeholder="-">
+              </div>
+            </div>
+            <button type="submit" class="btn btn-success mt-4 px-4 fw-bold">Simpan Data &amp; Cetak Label Put-Away</button>
+          </form>
+        </div>
+
+        <!-- FITUR SCAN SKU -->
+        <div class="card p-4 shadow-sm bg-white mb-4 border-primary">
+          <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div>
+              <h5 class="fw-bold text-primary m-0">Scan Barcode Barang (SKU)</h5>
+              <small class="text-muted">Scan barcode SKU barang fisik, otomatis terdata jumlah scan secara real-time.</small>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+              <span class="badge bg-primary fs-6" id="incomingTotalScanBadge">Total Scan: 0 pcs</span>
+              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetIncomingScan()">Reset</button>
+            </div>
+          </div>
+
+          <div class="bg-light p-3 rounded mb-3 border border-primary">
+            <div class="input-group">
+              <input type="text" id="incomingSkuInput" class="form-control form-control-lg fw-bold" placeholder="Scan barcode SKU di sini..." onkeydown="handleIncomingSkuKey(event)">
+              <button type="button" class="btn btn-outline-primary fw-bold" onclick="toggleIncomingSkuScanner()">📷 Kamera Scan</button>
+            </div>
+            <div id="readerIncomingSku" style="width: 100%; display: none;" class="mt-2"></div>
+            <div id="incomingSkuFeedback" class="small fw-bold mt-1"></div>
+          </div>
+
+          <div class="table-responsive" style="max-height: 250px;">
+            <table class="table table-striped table-hover align-middle mb-0">
+              <thead class="sticky-top">
+                <tr><th>No</th><th>No SKU / Kode</th><th>Nama Barang</th><th class="text-center">Jumlah Scan</th></tr>
+              </thead>
+              <tbody id="incomingSkuTableBody">
+                <tr><td colspan="4" class="text-center text-muted py-3">Belum ada barang di-scan.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE 4: PUT AWAY (MOBILE) -->
+      <div id="page4" style="display: none;" class="motion-page">
+        <h3 class="mb-3 text-dark fw-bold">Processing Put Away (Mobile Friendly)</h3>
+        <div class="card p-4 shadow-sm bg-white">
+          <form id="putawayForm" onsubmit="handleSavePutaway(event)">
+            <div class="bg-light p-3 rounded mb-3 border">
+              <label class="form-label fw-bold text-danger">Scan No Surat Jalan (Barcode)</label>
+              <div class="input-group mb-2">
+                <input type="text" id="paScanSJ" class="form-control form-control-lg fw-bold" placeholder="Scan / Ketik No SJ" onchange="fetchIncomingData()">
+                <button type="button" class="btn btn-outline-danger fw-bold" onclick="toggleScanner('sj')">📷 Scan SJ</button>
+              </div>
+              <div id="readerSJ" style="width: 100%; display: none;" class="mb-2"></div>
+            </div>
+
+            <div class="row g-2">
+              <div class="col-6 col-md-3">
+                <label class="form-label small fw-bold">Tgl Terima</label>
+                <input type="text" id="paTglTerima" class="form-control bg-light" readonly>
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label small fw-bold">Bulan</label>
+                <input type="text" id="paBulan" class="form-control bg-light" readonly>
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label small fw-bold">Kode Supplier</label>
+                <input type="text" id="paKodeSupplier" class="form-control bg-light" readonly>
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label small fw-bold">Nama Supplier</label>
+                <input type="text" id="paNamaSupplier" class="form-control bg-light" readonly>
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label small fw-bold">Kode Item</label>
+                <input type="text" id="paKodeItem" class="form-control bg-light" readonly>
+              </div>
+              <div class="col-6 col-md-4">
+                <label class="form-label small fw-bold">Nama Item</label>
+                <input type="text" id="paNamaItem" class="form-control bg-light" readonly>
+              </div>
+              <div class="col-6 col-md-2">
+                <label class="form-label small fw-bold">Harga</label>
+                <input type="text" id="paHarga" class="form-control bg-light" readonly>
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label small fw-bold text-primary">Target Lokasi</label>
+                <input type="text" id="paTargetLokasi" class="form-control bg-primary text-white fw-bold" readonly placeholder="Otomatis SJ">
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label small fw-bold text-success">Total Qty Incoming</label>
+                <input type="text" id="paQtyIncoming" class="form-control bg-success text-white fw-bold" readonly>
+              </div>
+            </div>
+
+            <hr class="my-3">
+            <h6 class="fw-bold text-dark mb-2">Scan Lokasi Rak &amp; Jumlah Put Away</h6>
+            
+            <div class="bg-light p-3 rounded mb-3 border border-warning">
+              <label class="form-label fw-bold text-primary">Scan / Ketik Kode Lokasi (Contoh: A-01-01-1)</label>
+              <div class="input-group mb-2">
+                <input type="text" id="paScanLokasi" class="form-control form-control-lg fw-bold border-primary text-uppercase" placeholder="Scan Kode Lokasi" oninput="autoParseLokasi()" required>
+                <button type="button" class="btn btn-outline-primary fw-bold" onclick="toggleScanner('lokasi')">📷 Scan Lokasi</button>
+              </div>
+              <div id="readerLokasi" style="width: 100%; display: none;" class="mb-2"></div>
+              <div id="lokasiErrorMsg" class="fw-bold small mt-1 text-danger"></div>
+            </div>
+
+            <div class="row g-2 bg-white p-2 rounded border mb-3">
+              <div class="col-3">
+                <label class="form-label small fw-bold">Area</label>
+                <input type="text" id="paArea" class="form-control form-control-sm bg-light text-center fw-bold" readonly>
+              </div>
+              <div class="col-3">
+                <label class="form-label small fw-bold">Lorong</label>
+                <input type="text" id="paLorong" class="form-control form-control-sm bg-light text-center fw-bold" readonly>
+              </div>
+              <div class="col-3">
+                <label class="form-label small fw-bold">Rak</label>
+                <input type="text" id="paRak" class="form-control form-control-sm bg-light text-center fw-bold" readonly>
+              </div>
+              <div class="col-3">
+                <label class="form-label small fw-bold">Level</label>
+                <input type="text" id="paLevel" class="form-control form-control-sm bg-light text-center fw-bold" readonly>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-bold text-danger">Jumlah Put-Away (Pcs)</label>
+              <input type="number" id="paJumlah" class="form-control form-control-lg border-danger fw-bold" placeholder="Masukkan Qty yang ditaruh di rak" required>
+            </div>
+
+            <button type="submit" id="btnSubmitPutaway" class="btn btn-primary w-100 fw-bold py-3">SIMPAN DATA PUT AWAY KE DATABASE</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- PAGE 5: STATUS KAPASITAS & TRANSFER PALLET -->
+      <div id="page5" style="display: none;" class="motion-page">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <h3 class="text-dark fw-bold m-0">Kapasitas &amp; Mutasi Rak Gudang</h3>
+          
+          <ul class="nav nav-pills bg-light p-1 rounded border" id="pillsSubKapasitas">
+            <li class="nav-item">
+              <button class="nav-link active fw-bold py-1 px-3" id="tabBtnKapasitas" onclick="switchKapasitasTab('monitoring')">
+                📊 Status Kapasitas
+              </button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link fw-bold py-1 px-3 text-primary" id="tabBtnTransfer" onclick="switchKapasitasTab('transfer')">
+                🔄 Transfer Pallet (Pindah Rak)
+              </button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link fw-bold py-1 px-3 text-secondary" id="tabBtnHistory" onclick="switchKapasitasTab('history')">
+                📜 Riwayat Transfer
+              </button>
+            </li>
+          </ul>
+        </div>
+
+        <!-- SUB-TAB 1: STATUS KAPASITAS -->
+        <div id="subTabMonitoring">
+          <div class="card p-4 shadow-sm bg-white mb-4 border-primary">
+            <h5 class="fw-bold text-primary mb-2">🔍 Scan Barcode Rak (Cek Isi Rak)</h5>
+            <div class="bg-light p-3 rounded border">
+              <div class="input-group">
+                <input type="text" id="scanRakInput" class="form-control form-control-lg fw-bold text-uppercase" placeholder="Contoh: A-01-01-1" onkeydown="if(event.key==='Enter') checkRakDetail()">
+                <button type="button" class="btn btn-primary fw-bold px-4" onclick="checkRakDetail()">Cek Isi Rak</button>
+                <button type="button" class="btn btn-outline-primary fw-bold" onclick="toggleRakScanner()">📷 Scan Rak</button>
+              </div>
+              <div id="readerRak" style="width: 100%; display: none;" class="mt-2"></div>
+            </div>
+
+            <div id="rakDetailContainer" class="mt-3" style="display: none;">
+              <div class="card p-3 bg-light border">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                  <div>
+                    <h4 class="fw-bold text-dark m-0 d-flex align-items-center gap-2">
+                      <span>📍 Rak: <span id="resRakKode" class="text-primary">-</span></span>
+                      <span id="resRakStatusBadge" class="badge bg-secondary fs-6">-</span>
+                    </h4>
+                    <small class="text-muted">Kapasitas: <b id="resRakKapasitas">0</b> pcs | Terpakai: <b id="resRakTerpakai">0</b> pcs | Sisa: <b id="resRakSisa">0</b> pcs</small>
+                  </div>
+                  <div>
+                    <span class="badge bg-success fs-5 p-2" id="resRakTotalBarang">Total: 0 pcs</span>
+                  </div>
+                </div>
+
+                <h6 class="fw-bold text-dark mb-2">Daftar Barang di Rak Ini:</h6>
+                <div class="table-responsive" style="max-height: 250px;">
+                  <table class="table table-striped table-hover align-middle mb-0 bg-white">
+                    <thead class="sticky-top">
+                      <tr><th>No</th><th>Kode Item</th><th>Nama Barang</th><th class="text-center">Jumlah di Rak</th></tr>
+                    </thead>
+                    <tbody id="rakItemsTableBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card p-4 shadow-sm bg-white">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+              <div>
+                <h5 class="fw-bold text-dark m-0">Kapasitas Master Lokasi</h5>
+                <small class="text-muted">Pantau kapasitas seluruh lokasi rak gudang secara visual.</small>
+              </div>
+              <div class="d-flex gap-2">
+                <span class="badge bg-primary fs-6 p-2" id="statTotalLokasi">Total: 0</span>
+                <span class="badge bg-success fs-6 p-2" id="statTersediaLokasi">Tersedia: 0</span>
+                <span class="badge bg-danger fs-6 p-2" id="statFullLokasi">Penuh: 0</span>
+              </div>
+            </div>
+
+            <div class="row g-2 mb-3">
+              <div class="col-md-7">
+                <input type="text" id="filterLokasiKeyword" class="form-control" placeholder="Cari kode lokasi..." oninput="renderLokasiCards()">
+              </div>
+              <div class="col-md-5">
+                <select id="filterLokasiStatus" class="form-select" onchange="renderLokasiCards()">
+                  <option value="ALL">Semua Status</option>
+                  <option value="AVAIL">Hanya Tersedia</option>
+                  <option value="FULL">Hanya Penuh</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="lokasiGridContainer" class="row g-2" style="max-height: 480px; overflow-y: auto;">
+              <div class="col-12 text-center text-muted py-4">Memuat data lokasi...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUB-TAB 2: TRANSFER PALLET (MUTASI RAK) -->
+        <div id="subTabTransfer" style="display: none;">
+          <div class="card p-4 shadow-sm bg-white mb-4 border-warning">
+            <h5 class="fw-bold text-warning-emphasis mb-1">🔄 Form Transfer Pallet / Mutasi Rak</h5>
+            <small class="text-muted mb-3 d-block">Pindahkan stok barang dari Rak Asal ke Rak Tujuan secara real-time di Supabase.</small>
+
+            <!-- STEP 1: RAK ASAL -->
+            <div class="bg-light p-3 rounded border mb-3">
+              <label class="form-label fw-bold text-dark">1. Masukkan / Scan Kode Rak Asal</label>
+              <div class="input-group">
+                <input type="text" id="trfRakAsal" class="form-control form-control-lg fw-bold text-uppercase" placeholder="Contoh: A-05-PL-02" onkeydown="if(event.key==='Enter') loadItemsForTransfer()">
+                <button type="button" class="btn btn-warning fw-bold px-4" onclick="loadItemsForTransfer()">Cari Isi Rak</button>
+                <button type="button" class="btn btn-outline-warning fw-bold" onclick="toggleTransferScanner('asal')">📷 Scan</button>
+              </div>
+              <div id="readerTrfAsal" style="width: 100%; display: none;" class="mt-2"></div>
+            </div>
+
+            <div id="trfItemsContainer" style="display: none;">
+              <div class="card p-3 bg-white border mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <div class="fw-bold">
+                    Barang di Rak <span id="lblTrfRakAsal" class="text-primary fs-5"></span> 
+                    (<span id="lblTrfTotalQty" class="text-success">0</span> pcs)
+                  </div>
+                  <button type="button" class="btn btn-sm btn-outline-primary fw-bold" onclick="toggleTransferSelectAll()">Pilih Semua</button>
+                </div>
+
+                <div class="table-responsive" style="max-height: 250px;">
+                  <table class="table table-striped table-hover align-middle mb-0">
+                    <thead class="sticky-top">
+                      <tr>
+                        <th style="width: 40px;" class="text-center">Pilih</th>
+                        <th>No Surat Jalan</th>
+                        <th>Kode</th>
+                        <th>Nama Item</th>
+                        <th class="text-center">Stok</th>
+                        <th class="text-center" style="width: 140px;">Qty Pindah</th>
+                      </tr>
+                    </thead>
+                    <tbody id="trfTableBody"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- STEP 2: RAK TUJUAN -->
+              <div class="bg-light p-3 rounded border">
+                <label class="form-label fw-bold text-dark">2. Masukkan / Scan Kode Rak Tujuan</label>
+                <div class="input-group mb-2">
+                  <input type="text" id="trfRakTujuan" class="form-control form-control-lg fw-bold text-uppercase border-success" placeholder="Contoh: A-01-ST-A17" oninput="checkRakTujuanCapacityLive()">
+                  <button type="button" class="btn btn-outline-success fw-bold" onclick="toggleTransferScanner('tujuan')">📷 Scan Tujuan</button>
+                </div>
+                <div id="readerTrfTujuan" style="width: 100%; display: none;" class="mt-2"></div>
+                <div id="trfTujuanFeedback" class="small fw-bold mb-2"></div>
+
+                <div class="mb-3">
+                  <label class="form-label fw-bold small text-muted">Keterangan / Alasan Transfer</label>
+                  <input type="text" id="trfKeterangan" class="form-control" placeholder="Contoh: Konsolidasi rak, Replenishment">
+                </div>
+
+                <button type="button" id="btnSubmitTransfer" class="btn btn-success w-100 fw-bold py-3 fs-6" onclick="submitTransferPallet()">
+                  🚀 EKSEKUSI TRANSFER PALLET / PINDAH RAK
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUB-TAB 3: RIWAYAT TRANSFER -->
+        <div id="subTabHistory" style="display: none;">
+          <div class="card p-4 shadow-sm bg-white">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h5 class="fw-bold text-dark m-0">📜 Riwayat Transfer &amp; Mutasi Rak</h5>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-outline-primary fw-bold" onclick="loadTransferHistory()">🔄 Refresh</button>
+                <button type="button" class="btn btn-sm btn-success fw-bold" onclick="downloadTransferHistoryExcel()">📥 Download Excel</button>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <input type="text" id="filterHistorySearch" class="form-control" placeholder="Cari ID Transfer, Rak Asal, Rak Tujuan, No SJ..." oninput="renderHistoryTable()">
+            </div>
+
+            <div class="table-responsive" style="max-height: 480px;">
+              <table class="table table-striped table-hover align-middle mb-0">
+                <thead class="sticky-top">
+                  <tr>
+                    <th>No</th><th>ID Transfer</th><th>Waktu</th><th>Rak Asal</th><th>Rak Tujuan</th><th>No SJ</th><th>Nama Item</th><th class="text-center">Qty</th><th>Petugas</th><th>Ket</th>
+                  </tr>
+                </thead>
+                <tbody id="historyTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE 6: MACRO -->
+      <div id="page6" style="display: none;" class="motion-page">
+        <h3 class="mb-4 text-dark fw-bold">MACRO - ORECO &amp; Pemisahan Data</h3>
+        <div class="card p-4 shadow-sm bg-white mb-4">
+          <h5 class="fw-bold text-danger border-bottom pb-2">1. Pemisahan Unik &amp; Duplikat</h5>
+          <div class="row g-3 align-items-center mt-1">
+            <div class="col-md-8">
+              <input type="file" id="macroFileUnikDuplikat" class="form-control" accept=".xlsx, .xls, .csv">
+            </div>
+            <div class="col-md-4">
+              <button onclick="runMacroSplitUnikDuplikat()" class="btn btn-danger w-100 fw-bold">Proses &amp; Download</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card p-4 shadow-sm bg-white mb-4">
+          <h5 class="fw-bold text-success border-bottom pb-2">2. Template ORECO (Lookup Database)</h5>
+          <div class="row g-3 align-items-center mt-1">
+            <div class="col-md-5">
+              <input type="file" id="macroSumberFileOreco" class="form-control" accept=".xlsx, .xls, .csv">
+            </div>
+            <div class="col-md-3">
+              <input type="text" id="tglCompileInput" class="form-control" placeholder="YYYYMMDD">
+            </div>
+            <div class="col-md-4">
+              <button onclick="runMacroOrecoBrowser()" class="btn btn-success w-100 fw-bold">Proses ORECO</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE 7: OUTBOUND -->
+      <div id="page7" style="display: none;" class="motion-page">
+        <h3 class="mb-4 text-dark fw-bold">Proses Outbound (Upload CSS)</h3>
+        <div class="card p-4 shadow-sm bg-white mb-4">
+          <h5 class="fw-bold text-primary border-bottom pb-2">Upload File Laporan Resi CSS</h5>
+          <div class="row g-3 align-items-center mt-1">
+            <div class="col-md-8">
+              <input type="file" id="outboundOrecoFile" class="form-control" accept=".xlsx, .xls, .csv">
+            </div>
+            <div class="col-md-4">
+              <button onclick="analyzeOutboundFile()" class="btn btn-primary w-100 fw-bold">Analisis Stok FIFO</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="outboundResultSection" style="display: none;">
+          <div class="card p-4 shadow-sm bg-white mb-4 border-success">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <div>
+                <h5 class="fw-bold text-success m-0">Rencana Pengambilan Barang (Letdown Task)</h5>
+                <small class="text-muted">ID Tugas: <span id="lblOutboundId" class="fw-bold text-dark">(belum disimpan)</span></small>
+                <div id="outboundSummary" class="small mt-1"></div>
+              </div>
+              <button id="btnCreateLetdown" onclick="createLetdownTaskFromFile()" class="btn btn-primary fw-bold">💾 Simpan Tugas &amp; Cetak</button>
+            </div>
+
+            <div class="table-responsive mb-3" style="max-height: 300px;">
+              <table class="table table-striped table-hover align-middle mb-0">
+                <thead class="sticky-top">
+                  <tr><th>No</th><th>Nama Barang / Singkatan</th><th>Total Qty</th><th>Lokasi Rak</th><th>Qty Ambil</th></tr>
+                </thead>
+                <tbody id="outboundAllocationTableBody"></tbody>
+              </table>
+            </div>
+
+            <div id="missingStockContainer" style="display: none;" class="alert alert-danger mb-0">
+              <h6 class="fw-bold mb-1">⚠️ Ada Stok Kurang / Tidak Cukup di Rak!</h6>
+              <ul id="missingStockList" class="mb-0 small"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE 8: LETDOWN PROSES -->
+      <div id="page8" style="display: none;" class="motion-page">
+        <h3 class="mb-4 text-dark fw-bold">Letdown Proses (Validasi Rak Fisik)</h3>
+        <div class="card p-4 shadow-sm bg-white mb-4">
+          <div class="bg-light p-3 rounded border mb-3">
+            <label class="form-label fw-bold text-danger">Scan Barcode Tugas / Ketik ID Tugas</label>
+            <div class="input-group mb-2">
+              <input type="text" id="letdownScanId" class="form-control fw-bold" placeholder="Contoh: OUT-..." onchange="loadLetdownTask()">
+              <button type="button" class="btn btn-outline-danger fw-bold" onclick="toggleLetdownScanner()">📷 Scan Tugas</button>
+            </div>
+            <div id="readerLetdown" style="width: 100%; display: none;" class="mb-2"></div>
+            <button type="button" class="btn btn-primary fw-bold btn-sm" onclick="loadLetdownTask()">Tampilkan Item</button>
+          </div>
+
+          <div id="letdownTaskSection" style="display:none;">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="fw-bold m-0">Item yang harus diambil <span id="letdownTaskLabel" class="text-primary"></span></h6>
+              <span id="letdownProgress" class="badge bg-secondary fs-6"></span>
+            </div>
+            <div id="letdownLines" class="d-flex flex-column gap-2 mb-3"></div>
+            <div id="readerLetdownRak" style="width: 100%; display: none;" class="mb-2"></div>
+            <button id="btnFinalizeLetdown" onclick="confirmFinalizeOutbound()" class="btn btn-danger w-100 fw-bold py-3" disabled>SELESAI OUTBOUND (Potong Stok Database)</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT LOGIKA LENGKAP -->
+  <script>
+    const SUPABASE_URL = "https://uobkbrtjydragzbgqfok.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvYmticnRqeWRyYWd6YmdxZm9rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2NDYyNDAsImV4cCI6MjEwOTIyMjI0MH0.Wa0f7keGte99Z4b6jswhvn0pA0A6zqviBN6z28Pn7kw";
+
+    let sb = null;
+    let currentUserRole = "admin";
+    let barangDb = [];
+    let skuDatabase = {};
+    let masterPOList = [];
+    let masterPutAwayList = [];
+    let masterLokasiList = [];
+    let incomingScannedList = [];
+    let currentTrfItems = [];
+    let masterHistoryList = [];
+    let putawayChartInstance = null;
+    let html5QrCode = null;
+    let rakScannerInstance = null;
+    let incomingSkuScanner = null;
+    let trfScannerInstance = null;
+    let currentOutboundAllocations = [];
+    let currentOutboundRows = null;
+    let currentLetdownTask = null;
+    let letdownScans = {};
+
+    window.addEventListener('DOMContentLoaded', () => {
+      try {
+        if (window.supabase && window.supabase.createClient) {
+          sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        }
+      } catch (e) { console.error("Supabase init error:", e); }
+    });
+
+    function login() {
+      const u = (document.getElementById('userInput').value || "").trim().toUpperCase();
+      const p = (document.getElementById('passInput').value || "").trim();
+
+      if ((u === "ADMIN" && p === "JNEKRW123") || (u === "OUTBOUND" && p === "123")) {
+        currentUserRole = (u === "OUTBOUND") ? "outbound" : "admin";
+        document.getElementById('loginSection').style.setProperty('display', 'none', 'important');
+        document.getElementById('appSection').style.display = 'block';
+        applyUserRole(currentUserRole);
+
+        if (currentUserRole === 'outbound') {
+          showPage(4);
+        } else {
+          showPage(1);
+          loadBarangList();
+        }
+      } else {
+        document.getElementById('loginMsg').innerText = "Username atau Password salah!";
+      }
+    }
+
+    function applyUserRole(role) {
+      const adminMenus = [1, 2, 3, 5, 6, 7];
+      if (role === 'outbound') {
+        adminMenus.forEach(m => document.getElementById('menu' + m).style.display = 'none');
+        document.getElementById('menu4').style.display = 'flex';
+        document.getElementById('menu8').style.display = 'flex';
+      } else {
+        for (let i = 1; i <= 8; i++) document.getElementById('menu' + i).style.display = 'flex';
+      }
+    }
+
+    function logout() {
+      document.getElementById('appSection').style.display = 'none';
+      document.getElementById('loginSection').style.setProperty('display', 'flex', 'important');
+    }
+
+    function showPage(p) {
+      for (let i = 1; i <= 8; i++) {
+        const pg = document.getElementById('page' + i);
+        const mn = document.getElementById('menu' + i);
+        if (pg) pg.style.display = 'none';
+        if (mn) mn.classList.remove('active');
+      }
+      const activePg = document.getElementById('page' + p);
+      const activeMn = document.getElementById('menu' + p);
+      if (activePg) activePg.style.display = 'block';
+      if (activeMn) activeMn.classList.add('active');
+
+      if (p === 1) loadPutAwayDashboard();
+      if (p === 2) loadPOTable();
+      if (p === 3) { loadBarangList(); loadLokasiIncoming(); }
+      if (p === 5) { loadKapasitasPage(); switchKapasitasTab('monitoring'); }
+      if (p === 6) initMacroDate();
+      if (p === 7) {
+        document.getElementById('outboundResultSection').style.display = 'none';
+        document.getElementById('outboundOrecoFile').value = '';
+      }
+      if (p === 8) {
+        document.getElementById('letdownTaskSection').style.display = 'none';
+      }
+    }
+
+    // =========================================================================
+    // PAGE 1: DASHBOARD
+    // =========================================================================
+    async function loadPutAwayDashboard() {
+      if (!sb) return;
+      try {
+        const { data: paData } = await sb.from('putaway_inventory').select('*');
+        const { data: outData } = await sb.from('outbound_orders').select('*');
+
+        masterPutAwayList = (paData || []).map(r => ({
+          ...r,
+          id: r.id,
+          nama_item: r.nama_item || '',
+          jumlah: Number(r.jumlah || 0),
+          lokasi: r.lokasi || '',
+          tgl_terima: r.tgl_terima || '',
+          nama_supplier: r.nama_supplier || '',
+          no_surat_jalan: r.no_surat_jalan || ''
+        }));
+
+        document.getElementById('dashOutbound').innerText = (outData || []).length;
+        applyDashboardFilters();
+      } catch (err) { console.error("Dashboard error:", err); }
+    }
+
+    function applyDashboardFilters() {
+      const start = document.getElementById('dashFilterStartDate').value;
+      const end = document.getElementById('dashFilterEndDate').value;
+      const kw = document.getElementById('dashFilterSearch').value.toLowerCase();
+
+      const filtered = masterPutAwayList.filter(r => {
+        let ok = true;
+        const tgl = r.tgl_terima || "";
+        if (start && tgl < start) ok = false;
+        if (end && tgl > end) ok = false;
+        if (kw) {
+          const item = (r.nama_item || "").toLowerCase();
+          const lok = (r.lokasi || "").toLowerCase();
+          if (!item.includes(kw) && !lok.includes(kw)) ok = false;
+        }
+        return ok;
+      });
+
+      const items = new Set();
+      let totalStock = 0, totalRetur = 0;
+
+      filtered.forEach(r => {
+        if (r.nama_item) items.add(r.nama_item.trim().toUpperCase());
+        const q = Number(r.jumlah) || 0;
+        totalStock += q;
+        if ((r.no_surat_jalan || "").toUpperCase().includes("RETUR")) totalRetur += q;
+      });
+
+      document.getElementById('dashItem').innerText = items.size;
+      document.getElementById('dashStock').innerText = totalStock.toLocaleString();
+      document.getElementById('dashReturn').innerText = totalRetur.toLocaleString();
+
+      renderDashboardTable(filtered);
+      renderPutAwayChart(filtered);
+    }
+
+    function resetDashboardFilters() {
+      document.getElementById('dashFilterStartDate').value = "";
+      document.getElementById('dashFilterEndDate').value = "";
+      document.getElementById('dashFilterSearch').value = "";
+      applyDashboardFilters();
+    }
+
+    function renderDashboardTable(list) {
+      const tbody = document.getElementById('dashboardTableBody');
+      tbody.innerHTML = "";
+      if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Tidak ada data Put Away.</td></tr>';
+        return;
+      }
+      list.slice(0, 100).forEach((r, idx) => {
+        tbody.innerHTML += `
+          <tr>
+            <td>${idx + 1}</td>
+            <td>${r.tgl_terima || '-'}</td>
+            <td>${r.nama_supplier || '-'}</td>
+            <td>${r.nama_item || '-'}</td>
+            <td class="fw-bold text-success">${Number(r.jumlah || 0).toLocaleString()}</td>
+            <td><span class="badge bg-primary">${r.lokasi || '-'}</span></td>
+          </tr>
+        `;
+      });
+    }
+
+    function renderPutAwayChart(list) {
+      const dateMap = {};
+      list.forEach(r => {
+        const d = r.tgl_terima || 'Tanpa Tgl';
+        dateMap[d] = (dateMap[d] || 0) + (Number(r.jumlah) || 0);
+      });
+      const dates = Object.keys(dateMap).sort();
+      const vals = dates.map(d => dateMap[d]);
+
+      const ctx = document.getElementById('putawayChart').getContext('2d');
+      if (putawayChartInstance) putawayChartInstance.destroy();
+      putawayChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: dates,
+          datasets: [{ label: 'Qty Put Away (Pcs)', data: vals, backgroundColor: '#2563eb', borderRadius: 6 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+    }
+
+    function downloadPutAwayDashboardExcel() {
+      if (!masterPutAwayList.length) return alert("Tidak ada data untuk diunduh!");
+      const ws = XLSX.utils.json_to_sheet(masterPutAwayList);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Put Away");
+      XLSX.writeFile(wb, "Rekap_Put_Away.xlsx");
+    }
+
+    // =========================================================================
+    // PAGE 2: PO
+    // =========================================================================
+    async function loadPOTable() {
+      if (!sb) return;
+      const { data } = await sb.from('purchase_orders').select('*').order('id', { ascending: true });
+      masterPOList = data || [];
+      applyPOFilters();
+    }
+
+    function applyPOFilters() {
+      const kw = document.getElementById('filterPOSearch').value.toLowerCase();
+      const selisihOnly = document.getElementById('filterSelisihOnly').checked;
+
+      const filtered = masterPOList.filter(r => {
+        if (selisihOnly && Number(r.qty_sisa) === 0) return false;
+        if (kw) {
+          const s = `${r.no_po} ${r.supplier} ${r.nama_item}`.toLowerCase();
+          if (!s.includes(kw)) return false;
+        }
+        return true;
+      });
+
+      const tbody = document.getElementById('poTableBody');
+      tbody.innerHTML = "";
+      if (!filtered.length) {
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">Tidak ada data PO.</td></tr>';
+        return;
+      }
+      filtered.forEach((r, idx) => {
+        const sisaClass = Number(r.qty_sisa) !== 0 ? 'text-danger fw-bold' : 'text-success';
+        tbody.innerHTML += `
+          <tr>
+            <td>${idx + 1}</td>
+            <td><b>${r.no_po || '-'}</b></td>
+            <td>${r.tgl_po || '-'}</td>
+            <td>${r.supplier || '-'}</td>
+            <td>${r.kode_item || '-'}</td>
+            <td>${r.nama_item || '-'}</td>
+            <td>${r.qty_total || 0}</td>
+            <td>${r.qty_terima || 0}</td>
+            <td class="${sisaClass}">${r.qty_sisa || 0}</td>
+            <td>${r.ket || '-'}</td>
+          </tr>
+        `;
+      });
+    }
+
+    function uploadPO() {
+      const fileInput = document.getElementById('poExcelFile');
+      if (!fileInput.files.length) return alert("Pilih file excel PO!");
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, { type: 'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+        const rowsToInsert = json.map((r, i) => ({
+          no: i + 1,
+          no_po: String(r['Nomor PO'] || r['NO PO'] || r['no_po'] || ''),
+          tgl_po: String(r['Tanggal PO'] || r['TGL PO'] || r['tgl_po'] || ''),
+          supplier: String(r['Supplier'] || r['supplier'] || ''),
+          kode_item: String(r['Kode Item'] || r['kode_item'] || ''),
+          nama_item: String(r['Item Produk'] || r['NAMA ITEM'] || r['nama_item'] || ''),
+          qty_total: Number(r['Qty Total'] || r['qty_total']) || 0,
+          qty_terima: Number(r['Qty Terima'] || r['qty_terima']) || 0,
+          qty_sisa: Number(r['Qty Sisa'] || r['qty_sisa']) || 0,
+          ket: String(r['Ket'] || r['ket'] || '-')
+        }));
+
+        const { error } = await sb.from('purchase_orders').insert(rowsToInsert);
+        if (error) alert("Gagal upload: " + error.message);
+        else {
+          alert(`Berhasil mengunggah ${rowsToInsert.length} data PO ke database!`);
+          loadPOTable();
+        }
+      };
+      reader.readAsArrayBuffer(fileInput.files[0]);
+    }
+
+    function downloadPOExcel() {
+      if (!masterPOList.length) return alert("Tidak ada data PO!");
+      const ws = XLSX.utils.json_to_sheet(masterPOList);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "PO");
+      XLSX.writeFile(wb, "Rekap_PO.xlsx");
+    }
+
+    // =========================================================================
+    // PAGE 3: INCOMING
+    // =========================================================================
+    async function loadBarangList() {
+      if (!sb) return;
+      const { data } = await sb.from('items').select('*');
+      barangDb = data || [];
+      const sel = document.getElementById('kodeItem');
+      sel.innerHTML = '<option value="">-- Pilih Kode Item --</option>';
+      barangDb.forEach(b => {
+        if (b.kode_item) {
+          sel.innerHTML += `<option value="${b.kode_item}">${b.kode_item} - ${b.nama_item}</option>`;
+          if (b.sku) skuDatabase[b.sku.toUpperCase()] = b;
+          skuDatabase[b.kode_item.toUpperCase()] = b;
+        }
+      });
+    }
+
+    function updateItemDetails() {
+      const code = document.getElementById('kodeItem').value;
+      const item = barangDb.find(b => b.kode_item === code);
+      if (item) {
+        document.getElementById('namaItem').value = item.nama_item;
+        document.getElementById('hargaItem').value = item.harga || 0;
+      }
+    }
+
+    function updateSupplierName() {
+      const code = document.getElementById('kodeSupplier').value;
+      const map = { "IN SP": "San Pasific Abadi", "IN BM": "Bolia Mitra Utama", "IN NC": "Nicholas Trimega Kencana" };
+      document.getElementById('namaSupplier').value = map[code] || "";
+    }
+
+    function calcGap() {
+      const m = Number(document.getElementById('qtyMasuk').value) || 0;
+      const d = Number(document.getElementById('qtyDiterima').value) || 0;
+      document.getElementById('gap').value = m - d;
+    }
+
+    async function loadLokasiIncoming() {
+      if (!sb) return;
+      const { data: locs } = await sb.from('warehouse_locations').select('*');
+      const sel = document.getElementById('lokasiPutaway');
+      sel.innerHTML = '<option value="">-- Pilih Lokasi Put-Away --</option>';
+      (locs || []).forEach(l => {
+        sel.innerHTML += `<option value="${l.kode_lokasi}">${l.kode_lokasi} (Kapasitas: ${l.kapasitas || '∞'})</option>`;
+      });
+    }
+
+    async function handleIncoming(e) {
+      e.preventDefault();
+      const payload = {
+        no_surat_jalan: document.getElementById('noSuratJalan').value,
+        tgl_terima: new Date().toISOString().split('T')[0],
+        bulan: new Date().toLocaleString('id-ID', { month: 'long' }),
+        kode_supplier: document.getElementById('kodeSupplier').value,
+        nama_supplier: document.getElementById('namaSupplier').value,
+        kode_item: document.getElementById('kodeItem').value,
+        nama_item: document.getElementById('namaItem').value,
+        harga: Number(document.getElementById('hargaItem').value) || 0,
+        no_po: document.getElementById('noPO').value,
+        qty_surat_jalan: Number(document.getElementById('qtySuratJalan').value) || 0,
+        qty_masuk: Number(document.getElementById('qtyMasuk').value) || 0,
+        qty_diterima: Number(document.getElementById('qtyDiterima').value) || 0,
+        gap: Number(document.getElementById('gap').value) || 0,
+        rak: document.getElementById('lokasiPutaway').value,
+        keterangan: document.getElementById('keterangan').value || "-"
+      };
+
+      const { error } = await sb.from('incomings').insert([payload]);
+      if (error) alert("Gagal simpan: " + error.message);
+      else {
+        alert("✅ Data Incoming Berhasil Disimpan ke Supabase!");
+        printLabelPDF(payload);
+        document.getElementById('incomingForm').reset();
+      }
+    }
+
+    function printLabelPDF(data) {
+      const w = window.open('', '_blank', 'width=500,height=550');
+      w.document.write(`
+        <html><head><title>LABEL PUT AWAY</title>
+        <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"><\/script>
+        <style>body{font-family:sans-serif;padding:15px;}.box{border:2px solid #000;padding:15px;border-radius:8px;}</style>
+        </head><body><div class="box">
+          <h3 style="margin:0;color:#dc3545;text-align:center;">JNE FULFILLMENT</h3>
+          <div style="text-align:center;margin:10px 0;"><svg id="bc"></svg></div>
+          <p><b>TARGET LOKASI:</b> <span style="font-size:18px;color:#dc3545;">${data.rak}</span></p>
+          <p><b>SUPPLIER:</b> ${data.nama_supplier}</p>
+          <p><b>ITEM:</b> ${data.nama_item} [${data.kode_item}]</p>
+          <p><b>QTY DITERIMA:</b> ${data.qty_diterima} PCS</p>
+        </div><script>
+          JsBarcode("#bc", "${data.no_surat_jalan}", {format: "CODE128", width:2, height:40});
+          window.onload = function(){ window.print(); }
+        <\/script></body></html>
+      `);
+      w.document.close();
+    }
+
+    function handleIncomingSkuKey(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const v = document.getElementById('incomingSkuInput').value.trim();
+        if (v) {
+          const item = skuDatabase[v.toUpperCase()];
+          const name = item ? item.nama_item : "Item SKU: " + v;
+          const found = incomingScannedList.find(x => x.sku === v);
+          if (found) found.qty++;
+          else incomingScannedList.push({ sku: v, nama: name, qty: 1 });
+          renderIncomingSkuTable();
+          document.getElementById('incomingSkuInput').value = "";
+        }
+      }
+    }
+
+    function renderIncomingSkuTable() {
+      const tbody = document.getElementById('incomingSkuTableBody');
+      tbody.innerHTML = "";
+      let total = 0;
+      incomingScannedList.forEach((it, i) => {
+        total += it.qty;
+        tbody.innerHTML += `<tr><td>${i+1}</td><td><b>${it.sku}</b></td><td>${it.nama}</td><td class="text-center fw-bold text-success">${it.qty}</td></tr>`;
+      });
+      document.getElementById('incomingTotalScanBadge').innerText = "Total Scan: " + total + " pcs";
+    }
+
+    function resetIncomingScan() {
+      incomingScannedList = [];
+      renderIncomingSkuTable();
+    }
+
+    function toggleIncomingSkuScanner() {
+      const el = document.getElementById('readerIncomingSku');
+      if (el.style.display === 'none') {
+        el.style.display = 'block';
+        incomingSkuScanner = new Html5Qrcode('readerIncomingSku');
+        incomingSkuScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (txt) => {
+          document.getElementById('incomingSkuInput').value = txt;
+          handleIncomingSkuKey({ key: 'Enter', preventDefault: ()=>{} });
+        });
+      } else {
+        if (incomingSkuScanner) incomingSkuScanner.stop();
+        el.style.display = 'none';
+      }
+    }
+
+    // =========================================================================
+    // PAGE 4: PUT AWAY
+    // =========================================================================
+    async function fetchIncomingData() {
+      const sj = document.getElementById('paScanSJ').value.trim();
+      if (!sj) return;
+      const { data } = await sb.from('incomings').select('*').ilike('no_surat_jalan', sj).limit(1);
+      if (data && data.length) {
+        const r = data[0];
+        document.getElementById('paTglTerima').value = r.tgl_terima || "";
+        document.getElementById('paBulan').value = r.bulan || "";
+        document.getElementById('paKodeSupplier').value = r.kode_supplier || "";
+        document.getElementById('paNamaSupplier').value = r.nama_supplier || "";
+        document.getElementById('paKodeItem').value = r.kode_item || "";
+        document.getElementById('paNamaItem').value = r.nama_item || "";
+        document.getElementById('paHarga').value = r.harga || 0;
+        document.getElementById('paTargetLokasi').value = r.rak || "-";
+        document.getElementById('paQtyIncoming').value = r.qty_diterima || 0;
+        document.getElementById('paJumlah').value = r.qty_diterima || 0;
+      } else {
+        alert("Nomor Surat Jalan tidak ditemukan di Incoming!");
+      }
+    }
+
+    function autoParseLokasi() {
+      const val = document.getElementById('paScanLokasi').value.trim().toUpperCase();
+      const parts = val.split('-');
+      if (parts.length === 4) {
+        document.getElementById('paArea').value = parts[0];
+        document.getElementById('paLorong').value = parts[1];
+        document.getElementById('paRak').value = parts[2];
+        document.getElementById('paLevel').value = parts[3];
+      }
+    }
+
+    async function handleSavePutaway(e) {
+      e.preventDefault();
+      const payload = {
+        no_surat_jalan: document.getElementById('paScanSJ').value,
+        tgl_terima: document.getElementById('paTglTerima').value || new Date().toISOString().split('T')[0],
+        bulan: document.getElementById('paBulan').value,
+        kode_supplier: document.getElementById('paKodeSupplier').value,
+        nama_supplier: document.getElementById('paNamaSupplier').value,
+        kode_item: document.getElementById('paKodeItem').value,
+        nama_item: document.getElementById('paNamaItem').value,
+        area: document.getElementById('paArea').value,
+        lorong: document.getElementById('paLorong').value,
+        rak: document.getElementById('paRak').value,
+        level: document.getElementById('paLevel').value,
+        lokasi: document.getElementById('paScanLokasi').value,
+        jumlah: Number(document.getElementById('paJumlah').value) || 0,
+        harga: Number(document.getElementById('paHarga').value) || 0
+      };
+
+      const { error } = await sb.from('putaway_inventory').insert([payload]);
+      if (error) alert("Gagal: " + error.message);
+      else {
+        alert("✅ Data Put Away Berhasil Disimpan ke Supabase!");
+        document.getElementById('putawayForm').reset();
+      }
+    }
+
+    function toggleScanner(type) {
+      const readerId = type === 'sj' ? 'readerSJ' : 'readerLokasi';
+      const el = document.getElementById(readerId);
+      if (el.style.display === 'none') {
+        el.style.display = 'block';
+        html5QrCode = new Html5Qrcode(readerId);
+        html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (txt) => {
+          if (type === 'sj') {
+            document.getElementById('paScanSJ').value = txt;
+            fetchIncomingData();
+          } else {
+            document.getElementById('paScanLokasi').value = txt;
+            autoParseLokasi();
+          }
+          html5QrCode.stop();
+          el.style.display = 'none';
+        });
+      } else {
+        if (html5QrCode) html5QrCode.stop();
+        el.style.display = 'none';
+      }
+    }
+
+    // =========================================================================
+    // PAGE 5: STATUS KAPASITAS & TRANSFER PALLET
+    // =========================================================================
+    function switchKapasitasTab(tab) {
+      document.getElementById('subTabMonitoring').style.display = tab === 'monitoring' ? 'block' : 'none';
+      document.getElementById('subTabTransfer').style.display = tab === 'transfer' ? 'block' : 'none';
+      document.getElementById('subTabHistory').style.display = tab === 'history' ? 'block' : 'none';
+
+      document.getElementById('tabBtnKapasitas').className = 'nav-link fw-bold py-1 px-3 ' + (tab === 'monitoring' ? 'active' : 'text-secondary');
+      document.getElementById('tabBtnTransfer').className = 'nav-link fw-bold py-1 px-3 ' + (tab === 'transfer' ? 'active' : 'text-primary');
+      document.getElementById('tabBtnHistory').className = 'nav-link fw-bold py-1 px-3 ' + (tab === 'history' ? 'active' : 'text-secondary');
+
+      if (tab === 'history') loadTransferHistory();
+    }
+
+    async function loadKapasitasPage() {
+      if (!sb) return;
+      const { data: locs } = await sb.from('warehouse_locations').select('*');
+      const { data: pa } = await sb.from('putaway_inventory').select('lokasi, jumlah');
+
+      const usedMap = {};
+      (pa || []).forEach(r => {
+        const l = String(r.lokasi || '').toUpperCase();
+        usedMap[l] = (usedMap[l] || 0) + Number(r.jumlah || 0);
+      });
+
+      masterLokasiList = (locs || []).map(l => {
+        const kode = l.kode_lokasi || '';
+        const cap = Number(l.kapasitas || 0);
+        const used = usedMap[kode.toUpperCase()] || 0;
+        const sisa = cap > 0 ? (cap - used) : 9999;
+        return {
+          ...l,
+          kode_lokasi: kode,
+          kapasitas: cap,
+          terpakai: used,
+          sisa: sisa < 0 ? 0 : sisa,
+          isFull: cap > 0 && sisa <= 0
+        };
+      });
+
+      renderLokasiCards();
+    }
+
+    function renderLokasiCards() {
+      const container = document.getElementById('lokasiGridContainer');
+      const kw = document.getElementById('filterLokasiKeyword').value.toLowerCase();
+      const status = document.getElementById('filterLokasiStatus').value;
+
+      let avail = 0, full = 0;
+      masterLokasiList.forEach(l => l.isFull ? full++ : avail++);
+      document.getElementById('statTotalLokasi').innerText = "Total: " + masterLokasiList.length;
+      document.getElementById('statTersediaLokasi').innerText = "Tersedia: " + avail;
+      document.getElementById('statFullLokasi').innerText = "Penuh: " + full;
+
+      const filtered = masterLokasiList.filter(l => {
+        if (kw && !l.kode_lokasi.toLowerCase().includes(kw)) return false;
+        if (status === 'AVAIL' && l.isFull) return false;
+        if (status === 'FULL' && !l.isFull) return false;
+        return true;
+      });
+
+      container.innerHTML = "";
+      filtered.forEach(l => {
+        const col = document.createElement('div');
+        col.className = 'col-6 col-md-3 col-lg-2';
+        col.innerHTML = `
+          <div class="card p-2 text-center lokasi-box-card ${l.isFull ? 'border-danger' : 'border-success-subtle'}" onclick="quickCheckRak('${l.kode_lokasi}')">
+            <div class="fw-bold small text-truncate">${l.kode_lokasi}</div>
+            <div class="my-1"><span class="badge ${l.isFull ? 'bg-danger' : 'bg-success'}">${l.isFull ? 'FULL' : 'Sisa ' + (l.sisa === 9999 ? '∞' : l.sisa)}</span></div>
+            <div class="small text-muted" style="font-size:11px;">Terpakai: <b>${l.terpakai}</b> pcs</div>
+          </div>
+        `;
+        container.appendChild(col);
+      });
+    }
+
+    async function checkRakDetail() {
+      const kode = document.getElementById('scanRakInput').value.trim().toUpperCase();
+      if (!kode) return alert("Masukkan kode lokasi rak!");
+      
+      const { data: items } = await sb.from('putaway_inventory').select('*').eq('lokasi', kode);
+      document.getElementById('rakDetailContainer').style.display = 'block';
+      document.getElementById('resRakKode').innerText = kode;
+
+      const stat = masterLokasiList.find(m => m.kode_lokasi.toUpperCase() === kode) || { kapasitas: 0, terpakai: 0, sisa: 0, isFull: false };
+      document.getElementById('resRakKapasitas').innerText = stat.kapasitas || '∞';
+      document.getElementById('resRakTerpakai').innerText = stat.terpakai;
+      document.getElementById('resRakSisa').innerText = stat.sisa === 9999 ? '∞' : stat.sisa;
+      document.getElementById('resRakStatusBadge').className = 'badge ' + (stat.isFull ? 'bg-danger' : 'bg-success');
+      document.getElementById('resRakStatusBadge').innerText = stat.isFull ? 'PENUH' : 'TERSEDIA';
+
+      const tbody = document.getElementById('rakItemsTableBody');
+      tbody.innerHTML = "";
+      let total = 0;
+      (items || []).forEach((r, idx) => {
+        total += Number(r.jumlah) || 0;
+        tbody.innerHTML += `<tr><td>${idx+1}</td><td><span class="badge bg-secondary">${r.kode_item}</span></td><td>${r.nama_item}</td><td class="text-center fw-bold text-success">${r.jumlah} pcs</td></tr>`;
+      });
+      document.getElementById('resRakTotalBarang').innerText = `Total: ${total} pcs`;
+    }
+
+    function quickCheckRak(k) {
+      document.getElementById('scanRakInput').value = k;
+      checkRakDetail();
+    }
+
+    function toggleRakScanner() {
+      const el = document.getElementById('readerRak');
+      if (el.style.display === 'none') {
+        el.style.display = 'block';
+        rakScannerInstance = new Html5Qrcode('readerRak');
+        rakScannerInstance.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (txt) => {
+          document.getElementById('scanRakInput').value = txt;
+          if (rakScannerInstance) rakScannerInstance.stop();
+          el.style.display = 'none';
+          checkRakDetail();
+        });
+      } else {
+        if (rakScannerInstance) rakScannerInstance.stop();
+        el.style.display = 'none';
+      }
+    }
+
+    // --- TRANSFER PALLET LOGIC ---
+    async function loadItemsForTransfer() {
+      const rakAsal = document.getElementById('trfRakAsal').value.trim().toUpperCase();
+      if (!rakAsal) return alert("Masukkan kode rak asal!");
+
+      const { data, error } = await sb.from('putaway_inventory').select('*').eq('lokasi', rakAsal).gt('jumlah', 0);
+      if (error) return alert("Error: " + error.message);
+      if (!data || !data.length) return alert("Tidak ada barang aktif di rak " + rakAsal);
+
+      currentTrfItems = data;
+      document.getElementById('lblTrfRakAsal').innerText = rakAsal;
+      let total = currentTrfItems.reduce((acc, curr) => acc + (Number(curr.jumlah) || 0), 0);
+      document.getElementById('lblTrfTotalQty').innerText = total;
+
+      const tbody = document.getElementById('trfTableBody');
+      tbody.innerHTML = "";
+      currentTrfItems.forEach((r, i) => {
+        tbody.innerHTML += `
+          <tr>
+            <td class="text-center"><input type="checkbox" class="trf-item-check" id="chkTrf_${i}" checked></td>
+            <td><span class="badge bg-secondary">${r.no_surat_jalan || '-'}</span></td>
+            <td><b>${r.kode_item || '-'}</b></td>
+            <td>${r.nama_item}</td>
+            <td class="text-center fw-bold text-primary">${r.jumlah}</td>
+            <td class="text-center"><input type="number" id="qtyTrf_${i}" class="form-control form-control-sm text-center fw-bold" value="${r.jumlah}" min="1" max="${r.jumlah}"></td>
+          </tr>
+        `;
+      });
+      document.getElementById('trfItemsContainer').style.display = 'block';
+    }
+
+    function toggleTransferSelectAll() {
+      const chks = document.querySelectorAll('.trf-item-check');
+      const all = Array.from(chks).every(c => c.checked);
+      chks.forEach(c => c.checked = !all);
+    }
+
+    function checkRakTujuanCapacityLive() {
+      const t = document.getElementById('trfRakTujuan').value.trim().toUpperCase();
+      const fb = document.getElementById('trfTujuanFeedback');
+      if (!t) { fb.innerText = ""; return; }
+      const stat = masterLokasiList.find(m => m.kode_lokasi.toUpperCase() === t);
+      if (stat) {
+        fb.className = "small fw-bold mb-2 " + (stat.isFull ? "text-danger" : "text-success");
+        fb.innerText = stat.isFull ? `⚠️ Rak ${t} PENUH!` : `✓ Rak ${t} tersedia (Sisa: ${stat.sisa} pcs)`;
+      } else {
+        fb.className = "small fw-bold mb-2 text-muted";
+        fb.innerText = "ℹ️ Rak belum di Master (bebas)";
+      }
+    }
+
+    function toggleTransferScanner(type) {
+      const readerId = type === 'asal' ? 'readerTrfAsal' : 'readerTrfTujuan';
+      const el = document.getElementById(readerId);
+      if (el.style.display === 'none') {
+        el.style.display = 'block';
+        trfScannerInstance = new Html5Qrcode(readerId);
+        trfScannerInstance.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (txt) => {
+          if (type === 'asal') {
+            document.getElementById('trfRakAsal').value = txt;
+            loadItemsForTransfer();
+          } else {
+            document.getElementById('trfRakTujuan').value = txt;
+            checkRakTujuanCapacityLive();
+          }
+          trfScannerInstance.stop();
+          el.style.display = 'none';
+        });
+      } else {
+        if (trfScannerInstance) trfScannerInstance.stop();
+        el.style.display = 'none';
+      }
+    }
+
+    async function submitTransferPallet() {
+      const rakAsal = document.getElementById('trfRakAsal').value.trim().toUpperCase();
+      const rakTujuan = document.getElementById('trfRakTujuan').value.trim().toUpperCase();
+      const ket = document.getElementById('trfKeterangan').value.trim() || "-";
+
+      if (!rakAsal || !rakTujuan) return alert("Rak Asal & Tujuan wajib diisi!");
+      if (rakAsal === rakTujuan) return alert("Rak Tujuan tidak boleh sama dengan Rak Asal!");
+
+      const selected = [];
+      let totalPindah = 0;
+      currentTrfItems.forEach((r, idx) => {
+        const chk = document.getElementById('chkTrf_' + idx);
+        if (chk && chk.checked) {
+          const q = Number(document.getElementById('qtyTrf_' + idx).value) || 0;
+          if (q > 0) {
+            selected.push({ row: r, qtyPindah: q });
+            totalPindah += q;
+          }
+        }
+      });
+
+      if (!selected.length) return alert("Pilih minimal 1 item untuk dipindah!");
+
+      if (!confirm(`Pindahkan total ${totalPindah} pcs dari ${rakAsal} ke ${rakTujuan}?`)) return;
+
+      const btn = document.getElementById('btnSubmitTransfer');
+      btn.disabled = true;
+
+      try {
+        const parts = rakTujuan.split('-');
+        const area = parts[0] || "", lorong = parts[1] || "", rak = parts[2] || "", level = parts.slice(3).join('-') || "";
+        const trfId = "TRF-" + Date.now();
+        const nowStr = new Date().toLocaleString('id-ID');
+
+        for (const item of selected) {
+          const r = item.row;
+          const q = item.qtyPindah;
+
+          if (q >= r.jumlah) {
+            // Full transfer: update row langsung
+            await sb.from('putaway_inventory').update({
+              lokasi: rakTujuan, area: area, lorong: lorong, rak: rak, level: level
+            }).eq('id', r.id);
+          } else {
+            // Parsial transfer: kurangi stok lama & buat baris baru
+            await sb.from('putaway_inventory').update({
+              jumlah: r.jumlah - q
+            }).eq('id', r.id);
+
+            await sb.from('putaway_inventory').insert([{
+              no_surat_jalan: r.no_surat_jalan,
+              tgl_terima: r.tgl_terima,
+              bulan: r.bulan,
+              kode_supplier: r.kode_supplier,
+              nama_supplier: r.nama_supplier,
+              kode_item: r.kode_item,
+              nama_item: r.nama_item,
+              area: area, lorong: lorong, rak: rak, level: level,
+              lokasi: rakTujuan,
+              jumlah: q,
+              harga: r.harga
+            }]);
+          }
+
+          // Catat Riwayat
+          await sb.from('pallet_transfers').insert([{
+            transfer_id: trfId,
+            tanggal: nowStr,
+            rak_asal: rakAsal,
+            rak_tujuan: rakTujuan,
+            no_sj: r.no_surat_jalan,
+            kode_item: r.kode_item,
+            nama_item: r.nama_item,
+            qty: q,
+            petugas: currentUserRole,
+            keterangan: ket
+          }]);
+        }
+
+        alert(`✅ Berhasil memindahkan ${totalPindah} pcs ke ${rakTujuan}!`);
+        document.getElementById('trfItemsContainer').style.display = 'none';
+        document.getElementById('trfRakAsal').value = "";
+        document.getElementById('trfRakTujuan').value = "";
+        loadKapasitasPage();
+      } catch (err) {
+        alert("Gagal transfer: " + err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function loadTransferHistory() {
+      if (!sb) return;
+      const { data } = await sb.from('pallet_transfers').select('*').order('id', { ascending: false }).limit(100);
+      masterHistoryList = data || [];
+      renderHistoryTable();
+    }
+
+    function renderHistoryTable() {
+      const kw = document.getElementById('filterHistorySearch').value.toLowerCase();
+      const tbody = document.getElementById('historyTableBody');
+      tbody.innerHTML = "";
+
+      const filtered = masterHistoryList.filter(r => {
+        if (!kw) return true;
+        return (r.transfer_id + r.rak_asal + r.rak_tujuan + r.nama_item).toLowerCase().includes(kw);
+      });
+
+      if (!filtered.length) {
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">Belum ada riwayat transfer.</td></tr>';
+        return;
+      }
+
+      filtered.forEach((r, i) => {
+        tbody.innerHTML += `
+          <tr>
+            <td>${i+1}</td>
+            <td><span class="badge bg-secondary">${r.transfer_id}</span></td>
+            <td><small>${r.tanggal}</small></td>
+            <td><span class="badge bg-warning text-dark">${r.rak_asal}</span></td>
+            <td><span class="badge bg-success">${r.rak_tujuan}</span></td>
+            <td><small>${r.no_sj || '-'}</small></td>
+            <td><b>${r.nama_item}</b></td>
+            <td class="text-center fw-bold text-primary">${r.qty} pcs</td>
+            <td><small>${r.petugas}</small></td>
+            <td><small class="text-muted">${r.keterangan || '-'}</small></td>
+          </tr>
+        `;
+      });
+    }
+
+    function downloadTransferHistoryExcel() {
+      if (!masterHistoryList.length) return alert("Tidak ada data riwayat!");
+      const ws = XLSX.utils.json_to_sheet(masterHistoryList);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Mutasi Rak");
+      XLSX.writeFile(wb, "Riwayat_Mutasi_Rak.xlsx");
+    }
+
+    // =========================================================================
+    // PAGE 6: MACRO (UNIK/DUPLIKAT & ORECO BROWSER)
+    // =========================================================================
+    function initMacroDate() {
+      const d = new Date();
+      document.getElementById('tglCompileInput').value = d.toISOString().split('T')[0].replace(/-/g, '');
+    }
+
+    function runMacroSplitUnikDuplikat() {
+      const fileInput = document.getElementById('macroFileUnikDuplikat');
+      if (!fileInput.files.length) return alert("Pilih file sumber!");
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, { type: 'array' });
+        const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
+        if (json.length <= 1) return alert("File kosong!");
+
+        const headers = json[0];
+        const rows = json.slice(1);
+        const memberIdx = headers.findIndex(h => String(h).toUpperCase().includes("MEMBER ID"));
+
+        const dictCount = {};
+        rows.forEach(r => {
+          const m = String(r[memberIdx] || '').trim().toUpperCase();
+          if (m) dictCount[m] = (dictCount[m] || 0) + 1;
+        });
+
+        const unik = [headers], dup = [headers];
+        rows.forEach(r => {
+          const m = String(r[memberIdx] || '').trim().toUpperCase();
+          if (m && dictCount[m] === 1) unik.push(r);
+          else dup.push(r);
+        });
+
+        const wbU = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wbU, XLSX.utils.aoa_to_sheet(unik), "Unik");
+        XLSX.writeFile(wbU, "Data_UNIK.xlsx");
+
+        const wbD = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wbD, XLSX.utils.aoa_to_sheet(dup), "Duplikat");
+        XLSX.writeFile(wbD, "Data_DUPLIKAT.xlsx");
+      };
+      reader.readAsArrayBuffer(fileInput.files[0]);
+    }
+
+    function runMacroOrecoBrowser() {
+      alert("Fitur ORECO siap memproses data compile Anda!");
+    }
+
+    // =========================================================================
+    // PAGE 7 & 8: OUTBOUND (FIFO) & LETDOWN PROSES
+    // =========================================================================
+    async function analyzeOutboundFile() {
+      const fileInput = document.getElementById('outboundOrecoFile');
+      if (!fileInput.files.length) return alert("Pilih file CSS!");
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, { type: 'array' });
+        const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
+
+        // Ambil stok aktif dari Supabase
+        const { data: stockData } = await sb.from('putaway_inventory').select('*').gt('jumlah', 0).order('id', { ascending: true });
+        const { data: existingOut } = await sb.from('outbound_orders').select('resi');
+
+        const seenResi = new Set((existingOut || []).map(x => String(x.resi).toUpperCase()));
+        const demand = {};
+
+        json.forEach(row => {
+          const resi = String(row['RESI'] || row['AWB'] || row['No Resi'] || '').trim().toUpperCase();
+          const desc = String(row['DESKRIPSI BARANG'] || row['GOODS DESC'] || '').trim();
+          if (resi && seenResi.has(resi)) return;
+
+          // Parsing sederhana qty & nama
+          const m = desc.match(/\((\d+)\)(.+)/);
+          const q = m ? Number(m[1]) : 1;
+          const itName = (m ? m[2] : desc).trim().toUpperCase();
+          demand[itName] = (demand[itName] || 0) + q;
+        });
+
+        const allocs = [];
+        const missing = [];
+
+        Object.keys(demand).forEach(name => {
+          let needed = demand[name];
+          const lots = (stockData || []).filter(s => String(s.nama_item).toUpperCase().includes(name) || name.includes(String(s.nama_item).toUpperCase()));
+          
+          lots.forEach(lot => {
+            if (needed <= 0 || lot.jumlah <= 0) return;
+            const take = Math.min(needed, lot.jumlah);
+            allocs.push({ rowId: lot.id, namaItem: lot.nama_item, lokasi: lot.lokasi, qtyAmbil: take, totalQty: demand[name] });
+            lot.jumlah -= take;
+            needed -= take;
+          });
+
+          if (needed > 0) {
+            missing.push({ nama: name, butuh: demand[name], kurang: needed });
+          }
+        });
+
+        currentOutboundAllocations = allocs;
+        currentOutboundRows = json;
+
+        // Render UI
+        const tbody = document.getElementById('outboundAllocationTableBody');
+        tbody.innerHTML = "";
+        allocs.forEach((a, i) => {
+          tbody.innerHTML += `<tr><td>${i+1}</td><td><b>${a.namaItem}</b></td><td>${a.totalQty}</td><td><span class="badge bg-primary">${a.lokasi}</span></td><td class="fw-bold text-success">${a.qtyAmbil} pcs</td></tr>`;
+        });
+
+        const missBox = document.getElementById('missingStockContainer');
+        const missUl = document.getElementById('missingStockList');
+        missUl.innerHTML = "";
+        if (missing.length) {
+          missBox.style.display = 'block';
+          missing.forEach(m => missUl.innerHTML += `<li>${m.nama} (Dibutuhkan: ${m.butuh}, Kurang: ${m.kurang})</li>`);
+        } else {
+          missBox.style.display = 'none';
+        }
+
+        document.getElementById('outboundResultSection').style.display = 'block';
+      };
+      reader.readAsArrayBuffer(fileInput.files[0]);
+    }
+
+    async function createLetdownTaskFromFile() {
+      if (!currentOutboundAllocations.length) return alert("Tidak ada alokasi barang!");
+      const taskId = "OUT-" + Date.now();
+      const tgl = new Date().toLocaleString('id-ID');
+
+      for (const a of currentOutboundAllocations) {
+        await sb.from('letdown_tasks').insert([{
+          id_tugas: taskId,
+          tanggal: tgl,
+          status: 'OPEN',
+          nama_item: a.namaItem,
+          lokasi: a.lokasi,
+          qty_ambil: a.qtyAmbil,
+          row_putaway: a.rowId,
+          jumlah_resi: currentOutboundRows.length
+        }]);
+      }
+
+      // Catat Resi ke database outbound
+      for (const r of currentOutboundRows) {
+        const resi = String(r['RESI'] || r['AWB'] || r['No Resi'] || '').trim().toUpperCase();
+        if (resi) {
+          await sb.from('outbound_orders').insert([{
+            resi: resi,
+            tgl_outbound: new Date().toISOString().split('T')[0],
+            jam: new Date().toLocaleTimeString('id-ID'),
+            id_tugas: taskId
+          }]);
+        }
+      }
+
+      alert("✅ Tugas Letdown berhasil disimpan! ID Tugas: " + taskId);
+      document.getElementById('letdownScanId').value = taskId;
+      showPage(8);
+      loadLetdownTask();
+    }
+
+    async function loadLetdownTask() {
+      const id = document.getElementById('letdownScanId').value.trim();
+      if (!id) return alert("Masukkan ID Tugas!");
+
+      const { data } = await sb.from('letdown_tasks').select('*').eq('id_tugas', id);
+      if (!data || !data.length) return alert("Tugas tidak ditemukan!");
+
+      currentLetdownTask = data;
+      letdownScans = {};
+      const box = document.getElementById('letdownLines');
+      box.innerHTML = "";
+
+      data.forEach(l => {
+        box.innerHTML += `
+          <div class="border rounded p-2 bg-white" id="ldCard_${l.id}">
+            <div class="d-flex justify-content-between align-items-center">
+              <div><b>${l.nama_item}</b><br><span class="badge bg-primary">${l.lokasi}</span></div>
+              <div class="fw-bold text-success fs-5">${l.qty_ambil} pcs</div>
+            </div>
+            <div class="input-group input-group-sm mt-2">
+              <input type="text" class="form-control fw-bold text-uppercase" id="ldInp_${l.id}" placeholder="Scan rak ${l.lokasi}" oninput="validateLetdownScan(${l.id}, '${l.lokasi}')">
+            </div>
+            <div id="ldMsg_${l.id}" class="small fw-bold mt-1"></div>
+          </div>
+        `;
+      });
+
+      document.getElementById('letdownTaskSection').style.display = 'block';
+      updateLetdownProgress();
+    }
+
+    function validateLetdownScan(id, targetLokasi) {
+      const v = document.getElementById('ldInp_' + id).value.trim().toUpperCase();
+      const msg = document.getElementById('ldMsg_' + id);
+      if (v === targetLokasi.toUpperCase()) {
+        letdownScans[id] = true;
+        msg.className = "small fw-bold mt-1 text-success";
+        msg.innerText = "✓ Rak sesuai!";
+      } else {
+        delete letdownScans[id];
+        msg.className = "small fw-bold mt-1 text-danger";
+        msg.innerText = "❌ Rak salah!";
+      }
+      updateLetdownProgress();
+    }
+
+    function updateLetdownProgress() {
+      const total = currentLetdownTask.length;
+      const ok = Object.keys(letdownScans).length;
+      document.getElementById('letdownProgress').innerText = `${ok} / ${total} Rak Terverifikasi`;
+      document.getElementById('btnFinalizeLetdown').disabled = (ok !== total);
+    }
+
+    async function confirmFinalizeOutbound() {
+      if (!confirm("Semua rak sudah diverifikasi. Selesaikan tugas dan potong stok di database?")) return;
+
+      for (const l of currentLetdownTask) {
+        // Ambil stok baris terkait
+        const { data: cur } = await sb.from('putaway_inventory').select('jumlah').eq('id', l.row_putaway).single();
+        if (cur) {
+          const sisa = Math.max(0, Number(cur.jumlah) - Number(l.qty_ambil));
+          await sb.from('putaway_inventory').update({ jumlah: sisa }).eq('id', l.row_putaway);
+        }
+        await sb.from('letdown_tasks').update({ status: 'DONE', tgl_selesai: new Date().toLocaleString('id-ID') }).eq('id', l.id);
+      }
+
+      alert("🎉 Letdown Selesai! Stok di Put Away telah resmi dipotong.");
+      showPage(1);
+    }
+
+    function toggleLetdownScanner() {
+      const el = document.getElementById('readerLetdown');
+      if (el.style.display === 'none') {
+        el.style.display = 'block';
+        const sc = new Html5Qrcode('readerLetdown');
+        sc.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (txt) => {
+          document.getElementById('letdownScanId').value = txt;
+          sc.stop();
+          el.style.display = 'none';
+          loadLetdownTask();
+        });
+      } else {
+        el.style.display = 'none';
+      }
+    }
+  </script>
+</body>
+</html>
